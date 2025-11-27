@@ -2,34 +2,45 @@
   /**
    * ZAN CHATBOT WIDGET CONFIGURATION
    * 
-   * If you are copying/pasting this code directly into your website, 
-   * set MANUAL_HOST_URL to the URL where your Zan Chatbot App is deployed.
+   * --- OPTION 1: LINKING TO FILE (Recommended) ---
+   * If you upload this file to your host (e.g., GitHub Pages) and use:
+   * <script src="https://username.github.io/repo/embed.js"></script>
+   * ...you do NOT need to edit this file. It will auto-detect the URL.
    * 
-   * Example: const MANUAL_HOST_URL = "https://zan-assistant.vercel.app";
+   * --- OPTION 2: COPY/PASTE CODE ---
+   * If you copy this code directly into another website's HTML, you MUST 
+   * set MANUAL_HOST_URL to your app's public address.
+   * 
+   * Example for GitHub Pages: 
+   * const MANUAL_HOST_URL = "https://johnnyabdelnour.github.io/zan_bot_repo";
    */
   const MANUAL_HOST_URL = ""; 
 
   // --- Logic to determine the App URL ---
   let APP_URL = MANUAL_HOST_URL;
 
-  // If no manual URL is set, try to detect it from the script tag src (if used as an external file)
+  // If no manual URL is set, try to detect it from the script tag src
   if (!APP_URL) {
     const scriptTag = document.currentScript;
     if (scriptTag && scriptTag.src) {
       try {
-        APP_URL = new URL(scriptTag.src).origin;
+        const scriptUrl = new URL(scriptTag.src);
+        // CRITICAL FIX FOR GITHUB PAGES: 
+        // We cannot just use .origin (e.g. github.io) because the app might be in a subdirectory (/repo/).
+        // We take the full URL and remove the filename 'embed.js' to get the base path.
+        APP_URL = scriptUrl.href.substring(0, scriptUrl.href.lastIndexOf('/'));
       } catch (e) {
         console.warn("Zan Widget: Could not determine origin from script src.");
       }
     }
   }
 
-  // Fallback: Use current origin (works if the widget is on the same domain as the app)
+  // Fallback: Use current origin (works only if the widget is on the same domain/folder as the app)
   if (!APP_URL) {
     APP_URL = window.location.origin;
   }
 
-  // Remove trailing slashes
+  // Remove trailing slashes just in case
   APP_URL = APP_URL.replace(/\/$/, "");
 
   console.log("Zan Widget connecting to:", APP_URL);
