@@ -1,5 +1,5 @@
 {
-  "name": "zane-municipality-assistant",
+  "name": "zan-assistant",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,7 +13,9 @@
     "@google/genai": "^1.30.0",
     "react": "^19.2.0",
     "lucide-react": "^0.555.0",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "pdfjs-dist": "3.11.174",
+    "mammoth": "1.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

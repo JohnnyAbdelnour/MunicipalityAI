@@ -1,3 +1,4 @@
+
 export interface Attachment {
   type: 'image' | 'file';
   mimeType: string;
@@ -23,4 +24,14 @@ export interface ChatState {
 export enum ModelType {
   FLASH = 'gemini-2.5-flash',
   PRO = 'gemini-3-pro-preview'
+}
+
+export interface KBDocument {
+  id: string;
+  name: string;
+  type: 'pdf' | 'xlsx' | 'docx' | 'md' | 'txt' | 'json';
+  lastModified?: string;
+  content: string; // The text content extracted from the file
+  source: 'github';
+  url?: string;
 }

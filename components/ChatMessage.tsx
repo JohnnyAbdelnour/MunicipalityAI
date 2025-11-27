@@ -10,12 +10,19 @@ interface ChatMessageProps {
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === 'user';
   const [copied, setCopied] = React.useState(false);
+  const [imgError, setImgError] = React.useState(false);
+
+  // Check if the text contains Arabic characters to toggle RTL
+  const isRTL = React.useMemo(() => /[\u0600-\u06FF]/.test(message.text || ''), [message.text]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Determine if the bot is in "Thinking" state (Streaming but no text yet)
+  const isThinking = !isUser && message.isStreaming && !message.text;
 
   return (
     <div className={`group flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -41,10 +48,21 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
 
         <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
           {/* Avatar */}
-          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-            isUser ? 'bg-primary-600 text-white' : 'bg-green-600 text-white'
+          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden ${
+            isUser ? 'bg-primary-600 text-white' : 'bg-white border border-slate-200 dark:border-slate-700 dark:bg-slate-800'
           }`}>
-            {isUser ? <User size={16} /> : <Bot size={16} />}
+            {isUser ? <User size={16} /> : (
+                !imgError ? (
+                    <img 
+                        src="https://drive.google.com/thumbnail?id=1skMXh8fVb3H6aI5FKsVAK1TzxqlyvXLR&sz=s200" 
+                        alt="Zan" 
+                        className="w-full h-full object-cover"
+                        onError={() => setImgError(true)}
+                    />
+                ) : (
+                    <Bot size={20} className="text-slate-400" />
+                )
+            )}
           </div>
 
           {/* Bubble */}
@@ -54,9 +72,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
               : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-100 dark:border-slate-700 rounded-tl-sm'
           }`}>
             
-            {/* Markdown Content */}
-            {message.text ? (
-                <div className={`prose prose-sm max-w-none ${isUser ? 'prose-invert' : 'dark:prose-invert prose-slate'}`}>
+            {isThinking ? (
+                /* Dancing Dots Animation */
+                <div className="flex space-x-1 h-6 items-center px-1">
+                    <div className="w-2 h-2 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-2 h-2 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-2 h-2 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce"></div>
+                </div>
+            ) : message.text ? (
+                /* Markdown Content */
+                <div 
+                    className={`prose prose-sm max-w-none ${isUser ? 'prose-invert' : 'dark:prose-invert prose-slate'} ${isRTL ? 'text-right' : 'text-left'}`}
+                    dir={isRTL ? 'rtl' : 'ltr'}
+                >
                 <ReactMarkdown
                   components={{
                     p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
@@ -70,13 +98,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
                                 {children}
                             </code>
                         ) : (
-                            <div className="relative my-4 rounded-md overflow-hidden bg-slate-900 text-slate-50 p-3 text-xs font-mono">
+                            <div className="relative my-4 rounded-md overflow-hidden bg-slate-900 text-slate-50 p-3 text-xs font-mono text-left" dir="ltr">
                                <code className="block whitespace-pre-wrap break-words" {...rest}>{children}</code>
                             </div>
                         );
                     },
-                    ul: ({node, ...props}) => <ul className="list-disc list-outside ml-4 mb-2" {...props} />,
-                    ol: ({node, ...props}) => <ol className="list-decimal list-outside ml-4 mb-2" {...props} />,
+                    ul: ({node, ...props}) => <ul className={`list-disc list-outside mb-2 ${isRTL ? 'mr-4' : 'ml-4'}`} {...props} />,
+                    ol: ({node, ...props}) => <ol className={`list-decimal list-outside mb-2 ${isRTL ? 'mr-4' : 'ml-4'}`} {...props} />,
                     li: ({node, ...props}) => <li className="mb-1" {...props} />
                   }}
                 >
@@ -84,13 +112,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
                 </ReactMarkdown>
               </div>
             ) : (
-                /* Handle cases where text is empty but attachments exist (rare with current logic but good for safety) */
+                /* Handle cases where text is empty but attachments exist (for User mainly) */
                 <span className="italic opacity-50">Sent an attachment</span>
             )}
             
 
-            {/* Loading Cursor for Bot */}
-            {message.isStreaming && (
+            {/* Loading Cursor for Bot (only when streaming AND text is visible) */}
+            {message.isStreaming && message.text && (
               <span className="inline-block w-2 h-4 ml-1 align-middle bg-current opacity-70 animate-pulse" />
             )}
 
@@ -98,7 +126,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             {!isUser && !message.isStreaming && message.text.length > 0 && (
               <button 
                 onClick={handleCopy}
-                className="absolute top-2 right-2 p-1.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                className={`absolute top-2 ${isRTL ? 'left-2' : 'right-2'} p-1.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100 transition-opacity`}
                 aria-label="Copy message"
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}

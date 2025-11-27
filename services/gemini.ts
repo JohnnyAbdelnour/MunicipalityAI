@@ -1,27 +1,13 @@
 import { GoogleGenAI, Chat, GenerateContentResponse, Part } from "@google/genai";
-import { ModelType, Attachment } from "../types";
-import { MUNICIPAL_DOCUMENTS } from "./knowledgeBase";
+import { ModelType, Attachment, KBDocument } from "../types";
 
 // Helper to create a delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const ZAN_KB_URL = "https://drive.google.com/drive/folders/1UMC6QnP1c8kwQ8A3oLmYM9m8sNrzGpk7?usp=sharing";
-
-const ZAN_SYSTEM_INSTRUCTION = `- You are a helpful and friendly 'AI Assistant' who is a representative of the municipality of Zane. You always respond in first person as 'we' when talking about municipality of Zane.
-- You always provide information and answers in a clear and concise manner ONLY based on the knowledge sources offered below.
+// Default System Instruction
+const BASE_PERSONA = `- You are a helpful and friendly 'AI Assistant' named 'Zan' who is a representative of the municipality of Zane. You always respond in first person as 'I' when talking about yourself or the municipality.
+- You always provide information and answers in a clear and concise manner only based on the knowledge sources offered.
 - Your task is to give one helpful answer to the user's question.
-
-### OFFICIAL KNOWLEDGE BASE (SOURCE OF TRUTH)
-The following text is the exact content extracted from the Municipality's Google Drive Archives. You must answer all user queries based ONLY on this information.
-
-${MUNICIPAL_DOCUMENTS}
-
-### RULES FOR ANSWERING
-1. **ANTI-HALLUCINATION**: If the answer to the user's question is NOT found in the "OFFICIAL KNOWLEDGE BASE" text above, you must apologize and state: "We cannot find specific information regarding that in our current archives. Please contact the municipal office directly."
-2. **NO EXTERNAL KNOWLEDGE**: Do not use your general training data to invent laws, schedules, or fees that are not listed above.
-3. **CITATIONS**: When possible, mention which document you found the info in (e.g., "According to the Waste Management Schedule...").
-4. **LINKING**: If the user asks for the physical documents, refer them to the official Google Drive Link: ${ZAN_KB_URL} (Do not display this link unless specifically asked).
-
 <output_format_instructions>
 Always format your responses using valid markdown. 
     - Use headings, bullet points, and numbered lists where appropriate.
@@ -31,26 +17,58 @@ Always format your responses using valid markdown.
     - Never break character.
     - Keep your answers small and concise and break down the large answers into small and easy-to-read paragraphs and bullet points. 
 </output_format_instructions>
-- the user may write in arabic, french, english and arabeezi writing languages or in a mix between all the languages so asses the given input and query accordingly.`;
+- the user may write in arabic, french, english and arabeezi writing languages or in a mix between all the languages so asses the given input and query accordingly.
+- do not mention the knowledge source title or page
+- **IMPORTANT**: The provided knowledge base documents are for your internal reasoning only. The user cannot see these files. 
+- Do NOT refer to "the document", "the provided text", "the file", "the PDF", or specific filenames. Answer as if this knowledge is your own general knowledge as the Municipality representative.
+- Do NOT say "attached is the form" or "refer to the attachment" or "download the file below" as you CANNOT send files to the user. You must extract the relevant info (requirements, steps, fees) and write it directly in the chat.
+- **CRITICAL**: Do NOT start your response with "As a representative of...", "I am Zan...", "بصفتي ممثلًا لبلدية زان...", or similar introductions. Dive directly into the helpful answer.
+- When the response is relevant to the user's query, directly addresses their intent, or appropriately moves the conversation forward—such as by asking clarifying questions or requesting additional information—it should offer a clear, complete, and contextually appropriate resolution. If further action is required, the response includes timely and relevant follow-up such as next steps, useful links, or confirmations. Throughout the exchange, the assistant remains consistent with prior context, handles any limitations gracefully, and ensures that the user's needs are met or clearly identifies what is required to proceed.`;
 
 export class GeminiService {
   private ai: GoogleGenAI;
   private chatSession: Chat | null = null;
   private model: string;
+  private currentSystemInstruction: string;
 
   constructor() {
     // API key is strictly from process.env.API_KEY
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     this.model = ModelType.FLASH;
+    
+    // Initialize with empty knowledge base - waiting for GitHub sync
+    this.currentSystemInstruction = this.buildSystemInstruction("", "Pending Connection...");
   }
 
-  public initChat(systemInstruction?: string) {
+  private buildSystemInstruction(kbContent: string, sourceName: string): string {
+    const kbSection = kbContent 
+        ? `### CONNECTED KNOWLEDGE BASE (${sourceName})\nYou have read-access to the following specific documents.\nYou must ONLY use the information provided below to answer questions. If the answer is not in these files, state that the information is not currently available in the archives.\n\n${kbContent}`
+        : `### NO KNOWLEDGE BASE CONNECTED\nYou do not currently have access to specific municipal documents. Please ask the user to sync the repository.`;
+
+    // Removed explicit citation rules to comply with "do not mention knowledge source title or page"
+    return `${BASE_PERSONA}\n\n${kbSection}`;
+  }
+
+  public initChat() {
     this.chatSession = this.ai.chats.create({
       model: this.model,
       config: {
-        systemInstruction: systemInstruction || ZAN_SYSTEM_INSTRUCTION,
+        systemInstruction: this.currentSystemInstruction,
       },
     });
+  }
+
+  /**
+   * Updates the knowledge base context dynamically.
+   * Useful when switching from Mock Drive to Real GitHub Repo.
+   */
+  public updateContext(docs: KBDocument[], sourceName: string) {
+    const contextString = docs.map(doc => 
+        `FILE: "${doc.name}" (Type: ${doc.type})\nCONTENT:\n${doc.content}\n-------------------`
+    ).join('\n');
+
+    this.currentSystemInstruction = this.buildSystemInstruction(contextString, sourceName);
+    this.reset(); // Reset session to apply new system instruction
   }
 
   public async sendMessageStream(
@@ -107,13 +125,14 @@ export class GeminiService {
 
       return fullText;
     } catch (error) {
-      console.error("Error in Gemini service:", error);
+      console.error("Error in sendMessageStream:", error);
       throw error;
     }
   }
 
   public reset() {
     this.chatSession = null;
+    this.initChat();
   }
 }
 
