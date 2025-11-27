@@ -374,7 +374,7 @@ const App: React.FC = () => {
                 <LogoImage className="w-full h-full object-cover" />
             </div>
             <div className="flex flex-col">
-              <h1 className="font-semibold text-lg leading-tight tracking-tight text-slate-800 dark:text-white">Zane<span className="text-emerald-500">Municipality</span></h1>
+              <h1 className="font-semibold text-lg leading-tight tracking-tight text-slate-800 dark:text-white">Zan<span className="text-emerald-500">Municipality</span></h1>
               {isSyncing ? (
                  <span className="text-[10px] text-amber-500 font-medium flex items-center gap-1">
                     <RefreshCw size={10} className="animate-spin" />
