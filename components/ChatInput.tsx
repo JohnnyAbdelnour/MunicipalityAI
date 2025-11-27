@@ -208,7 +208,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading }) => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isListening ? "Listening..." : "Message Gemini..."}
+          placeholder={isListening ? "Listening..." : "Message Zan..."}
           className="flex-1 max-h-[120px] min-h-[44px] py-3 px-2 bg-transparent border-none outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-none overflow-y-auto custom-scrollbar"
           rows={1}
           disabled={isLoading}
@@ -245,9 +245,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading }) => {
           )}
         </button>
       </div>
-      <p className="text-center text-xs text-slate-400 mt-2">
-        Gemini may display inaccurate info, including about people, so double-check its responses.
-      </p>
     </div>
   );
 };
