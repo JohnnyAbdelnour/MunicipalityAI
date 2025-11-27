@@ -1,49 +1,58 @@
 (function() {
   /**
-   * ZAN CHATBOT WIDGET CONFIGURATION
+   * ZAN CHATBOT WIDGET
    * 
-   * --- OPTION 1: LINKING TO FILE (Recommended) ---
-   * If you upload this file to your host (e.g., GitHub Pages) and use:
-   * <script src="https://username.github.io/repo/embed.js"></script>
-   * ...you do NOT need to edit this file. It will auto-detect the URL.
-   * 
-   * --- OPTION 2: COPY/PASTE CODE ---
-   * If you copy this code directly into another website's HTML, you MUST 
-   * set MANUAL_HOST_URL to your app's public address.
-   * 
-   * Example for GitHub Pages: 
-   * const MANUAL_HOST_URL = "https://johnnyabdelnour.github.io/zan_bot_repo";
+   * Configuration Priority:
+   * 1. `data-bot-url` attribute on the script tag.
+   * 2. `MANUAL_HOST_URL` variable below (for copy/paste).
+   * 3. Auto-detected location of this script file.
    */
   const MANUAL_HOST_URL = ""; 
 
   // --- Logic to determine the App URL ---
   let APP_URL = MANUAL_HOST_URL;
+  let scriptTag = document.currentScript;
 
-  // If no manual URL is set, try to detect it from the script tag src
-  if (!APP_URL) {
-    const scriptTag = document.currentScript;
-    if (scriptTag && scriptTag.src) {
-      try {
-        const scriptUrl = new URL(scriptTag.src);
-        // CRITICAL FIX FOR GITHUB PAGES: 
-        // We cannot just use .origin (e.g. github.io) because the app might be in a subdirectory (/repo/).
-        // We take the full URL and remove the filename 'embed.js' to get the base path.
-        APP_URL = scriptUrl.href.substring(0, scriptUrl.href.lastIndexOf('/'));
-      } catch (e) {
-        console.warn("Zan Widget: Could not determine origin from script src.");
-      }
+  // If deferred, currentScript might be null, so try to find the script by filename
+  if (!scriptTag) {
+    scriptTag = document.querySelector('script[src*="embed.js"]');
+  }
+
+  // 1. Check data attribute
+  if (scriptTag && scriptTag.getAttribute('data-bot-url')) {
+    APP_URL = scriptTag.getAttribute('data-bot-url');
+  }
+  
+  // 2. Fallback to Auto-detect from script src
+  if (!APP_URL && scriptTag && scriptTag.src) {
+    try {
+      const scriptUrl = new URL(scriptTag.src);
+      // Remove 'embed.js' to get base path
+      APP_URL = scriptUrl.href.substring(0, scriptUrl.href.lastIndexOf('/'));
+    } catch (e) {
+      console.warn("Zan Widget: Could not determine origin from script src.");
     }
   }
 
-  // Fallback: Use current origin (works only if the widget is on the same domain/folder as the app)
+  // 3. Last Resort: Current Origin
   if (!APP_URL) {
     APP_URL = window.location.origin;
   }
 
-  // Remove trailing slashes just in case
+  // Sanitize
   APP_URL = APP_URL.replace(/\/$/, "");
 
-  console.log("Zan Widget connecting to:", APP_URL);
+  // Debugging Check
+  if (window.location.hostname !== 'localhost' && APP_URL === window.location.origin && !MANUAL_HOST_URL) {
+      console.warn(
+          "%c[Zan Widget Warning] The bot URL is set to the current origin (" + APP_URL + ").\n" +
+          "If your bot is hosted elsewhere (e.g. GitHub Pages), the widget will load the WRONG page.\n" +
+          "FIX: Add data-bot-url='YOUR_BOT_URL' to the script tag.", 
+          "color: orange; font-weight: bold;"
+      );
+  } else {
+      console.log("Zan Widget connecting to:", APP_URL);
+  }
 
   // --- Styles ---
   const style = document.createElement('style');
@@ -86,13 +95,13 @@
       width: 100%;
       height: 100%;
       border: none;
+      background-color: #f8fafc; /* Placeholder color while loading */
     }
     
     #zan-widget-button {
       width: 60px;
       height: 60px;
       border-radius: 30px;
-      /* Emerald-600 to match branding */
       background: #059669; 
       box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
       cursor: pointer;
@@ -152,7 +161,7 @@
   iframe.id = 'zan-widget-iframe';
   iframe.src = `${APP_URL}/?mode=widget`; 
   iframe.title = "Zan Chatbot";
-  iframe.allow = "microphone"; // Allow voice input in iframe
+  iframe.allow = "microphone";
   
   frameContainer.appendChild(iframe);
 
@@ -178,6 +187,11 @@
     if (isOpen) {
       container.classList.add('open');
       frameContainer.classList.add('open');
+      
+      // Reload iframe if it was blank/error (optional optimization)
+      if (iframe.contentWindow && iframe.contentWindow.location.href === 'about:blank') {
+          iframe.src = `${APP_URL}/?mode=widget`;
+      }
     } else {
       container.classList.remove('open');
       frameContainer.classList.remove('open');
