@@ -1,0 +1,7 @@
+{
+  "name": "Zane Municipality Assistant",
+  "description": "A helpful AI representative for the Municipality of Zane.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
